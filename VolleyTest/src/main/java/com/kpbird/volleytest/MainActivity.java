@@ -2,7 +2,9 @@ package com.kpbird.volleytest;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.support.v4.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,6 +16,8 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.ImageLoader;
+import com.android.volley.toolbox.NetworkImageView;
 import com.android.volley.toolbox.Volley;
 import com.arrow.cloud.mws.dto.partSearch.PartSearchResult;
 import com.arrow.cloud.mws.dto.partSearch.PartSearchReturn;
@@ -27,6 +31,7 @@ public class MainActivity extends Activity {
     private String TAG = this.getClass().getSimpleName();
     private ListView lstView;
     private RequestQueue mRequestQueue;
+    private ImageLoader mImageLoader;
     private ArrayList<PartSearchResult> arrNews;
     private LayoutInflater lf;
     private VolleyAdapter va;
@@ -44,7 +49,10 @@ public class MainActivity extends Activity {
 
         lstView = (ListView) findViewById(R.id.listView);
         lstView.setAdapter(va);
+
         mRequestQueue = Volley.newRequestQueue(this);
+        mImageLoader = new ImageLoader(mRequestQueue, new BitmapCache(20));
+
         String url = "http://mobapi.arrow.com/MWS/jsonServlet?function=doPartSearch&p0=bav99&p1=1&p2=20&p3=1&p4=&p5=&p6=itest";
 
         pd = ProgressDialog.show(this, null, null);
@@ -98,6 +106,7 @@ public class MainActivity extends Activity {
             if (view == null) {
                 vh = new ViewHolder();
                 view = lf.inflate(R.layout.row_listview, null);
+                vh.mImageView = (NetworkImageView) view.findViewById(R.id.small_image_view);
                 vh.tvTitle = (TextView) view.findViewById(R.id.txtTitle);
                 vh.tvDesc = (TextView) view.findViewById(R.id.txtDesc);
                 vh.tvDate = (TextView) view.findViewById(R.id.txtDate);
@@ -110,15 +119,36 @@ public class MainActivity extends Activity {
             vh.tvTitle.setText(nm.getPartNumber());
             vh.tvDesc.setText(nm.getDescription());
             vh.tvDate.setText(nm.getManName());
+
+            vh.mImageView.setImageUrl(nm.getSmallImage(), mImageLoader);
+
             return view;
         }
 
         class ViewHolder {
+            NetworkImageView mImageView;
             TextView tvTitle;
             TextView tvDesc;
             TextView tvDate;
-
         }
 
     }
+
+    public class BitmapCache extends LruCache implements ImageLoader
+            .ImageCache {
+        public BitmapCache(int maxSize) {
+            super(maxSize);
+        }
+
+        @Override
+        public Bitmap getBitmap(String url) {
+            return (Bitmap) get(url);
+        }
+
+        @Override
+        public void putBitmap(String url, Bitmap bitmap) {
+            put(url, bitmap);
+        }
+    }
+
 }
