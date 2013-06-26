@@ -1,33 +1,33 @@
 package com.kpbird.volleytest;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.os.Bundle;
-import android.app.Activity;
-import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.arrow.cloud.mws.dto.partSearch.PartSearchResult;
+import com.arrow.cloud.mws.dto.partSearch.PartSearchReturn;
+import com.kpbird.volleytest.toolbox.GsonRequest;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class MainActivity extends Activity {
 
     private String TAG = this.getClass().getSimpleName();
     private ListView lstView;
     private RequestQueue mRequestQueue;
-    private ArrayList<NewsModel> arrNews ;
+    private ArrayList<PartSearchResult> arrNews;
     private LayoutInflater lf;
     private VolleyAdapter va;
     private ProgressDialog pd;
@@ -39,100 +39,43 @@ public class MainActivity extends Activity {
         lf = LayoutInflater.from(this);
 
 
-        arrNews = new ArrayList<NewsModel>();
+        arrNews = new ArrayList<PartSearchResult>();
         va = new VolleyAdapter();
 
         lstView = (ListView) findViewById(R.id.listView);
         lstView.setAdapter(va);
-        mRequestQueue =  Volley.newRequestQueue(this);
-        String url = "http://pipes.yahooapis.com/pipes/pipe.run?_id=giWz8Vc33BG6rQEQo_NLYQ&_render=json";
-        pd = ProgressDialog.show(this,"Please Wait...","Please Wait...");
-        
-        JsonObjectRequest jr = new JsonObjectRequest(Request.Method.GET,url,null,new Response.Listener<JSONObject>() {
-            @Override
-            public void onResponse(JSONObject response) {
-                Log.i(TAG,response.toString());
-                parseJSON(response);
-                va.notifyDataSetChanged();
-                pd.dismiss();
-;            }
-        },new Response.ErrorListener() {
+        mRequestQueue = Volley.newRequestQueue(this);
+        String url = "http://mobapi.arrow.com/MWS/jsonServlet?function=doPartSearch&p0=bav99&p1=1&p2=20&p3=1&p4=&p5=&p6=itest";
+
+        pd = ProgressDialog.show(this, null, null);
+
+        GsonRequest<PartSearchReturn> gsonRequest = new GsonRequest<PartSearchReturn>(Request
+                .Method.GET, url, PartSearchReturn.class,
+                new Response.Listener<PartSearchReturn>() {
+
+                    @Override
+                    public void onResponse(PartSearchReturn response) {
+                        if (response != null) {
+                            arrNews.addAll(Arrays.asList(response.getPartSearchResults()));
+                            va.notifyDataSetChanged();
+                        }
+                        pd.dismiss();
+                    }
+
+                }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-                Log.i(TAG,error.getMessage());
-            }
-        });
-        mRequestQueue.add(jr);
-
-
-
-    }
-
-    private void parseJSON(JSONObject json){
-        try{
-            JSONObject value = json.getJSONObject("value");
-            JSONArray items = value.getJSONArray("items");
-            for(int i=0;i<items.length();i++){
-
-                    JSONObject item = items.getJSONObject(i);
-                    NewsModel nm = new NewsModel();
-                    nm.setTitle(item.optString("title"));
-                    nm.setDescription(item.optString("description"));
-                    nm.setLink(item.optString("link"));
-                    nm.setPubDate(item.optString("pubDate"));
-                    arrNews.add(nm);
+                pd.dismiss();
+                mRequestQueue.cancelAll(this);
             }
         }
-        catch(Exception e){
-            e.printStackTrace();
-        }
+        );
 
+        mRequestQueue.add(gsonRequest);
 
     }
 
-
-    class NewsModel{
-        private String title;
-        private String link;
-        private String description;
-        private String pubDate;
-
-        void setTitle(String title) {
-            this.title = title;
-        }
-
-        void setLink(String link) {
-            this.link = link;
-        }
-
-        void setDescription(String description) {
-            this.description = description;
-        }
-
-        void setPubDate(String pubDate) {
-            this.pubDate = pubDate;
-        }
-
-        String getLink() {
-            return link;
-        }
-
-        String getDescription() {
-            return description;
-        }
-
-        String getPubDate() {
-            return pubDate;
-        }
-
-        String getTitle() {
-
-            return title;
-        }
-    }
-
-
-    class VolleyAdapter extends BaseAdapter{
+    class VolleyAdapter extends BaseAdapter {
 
         @Override
         public int getCount() {
@@ -151,30 +94,29 @@ public class MainActivity extends Activity {
 
         @Override
         public View getView(int i, View view, ViewGroup viewGroup) {
-            ViewHolder vh ;
-           if(view == null){
-               vh = new ViewHolder();
-               view = lf.inflate(R.layout.row_listview,null);
-               vh.tvTitle = (TextView) view.findViewById(R.id.txtTitle);
-               vh.tvDesc = (TextView) view.findViewById(R.id.txtDesc);
-               vh.tvDate = (TextView) view.findViewById(R.id.txtDate);
-               view.setTag(vh);
-          }
-            else{
-               vh = (ViewHolder) view.getTag();
-           }
+            ViewHolder vh;
+            if (view == null) {
+                vh = new ViewHolder();
+                view = lf.inflate(R.layout.row_listview, null);
+                vh.tvTitle = (TextView) view.findViewById(R.id.txtTitle);
+                vh.tvDesc = (TextView) view.findViewById(R.id.txtDesc);
+                vh.tvDate = (TextView) view.findViewById(R.id.txtDate);
+                view.setTag(vh);
+            } else {
+                vh = (ViewHolder) view.getTag();
+            }
 
-            NewsModel nm = arrNews.get(i);
-            vh.tvTitle.setText(nm.getTitle());
+            PartSearchResult nm = arrNews.get(i);
+            vh.tvTitle.setText(nm.getPartNumber());
             vh.tvDesc.setText(nm.getDescription());
-            vh.tvDate.setText(nm.getPubDate());
+            vh.tvDate.setText(nm.getManName());
             return view;
         }
 
-         class  ViewHolder{
+        class ViewHolder {
             TextView tvTitle;
-             TextView tvDesc;
-             TextView tvDate;
+            TextView tvDesc;
+            TextView tvDate;
 
         }
 
